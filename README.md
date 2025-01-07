@@ -1,5 +1,6 @@
 # my-gui-port-scanner
-Small GUI port scanner
+Small GUI port scanner :
+- Use Nmap to discover service on open port.
 ```bash
 pip install -r requirements.txt
 ```
