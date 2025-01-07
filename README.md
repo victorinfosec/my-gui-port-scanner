@@ -1,6 +1,8 @@
 # my-gui-port-scanner
 Small GUI port scanner
-
+```bash
+pip install -r requirements.txt
+```
 ```bash
 python3 gui-portscanner.py
 ```
