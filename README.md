@@ -9,6 +9,7 @@ python3 gui-portscanner.py
 ```
 
 Todo :
-- requierements
 - test in ctf
-- export file 
+- Add a window to connect to openvpn : https://pypi.org/project/python-openvpn-client/
+- Better textbox for exploit
+- 
