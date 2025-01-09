@@ -2,123 +2,151 @@ import socket
 import concurrent.futures
 import threading
 import customtkinter as ctk
-import nmap 
+import nmap
+import PortScanner
 
-# Variable pour contrôler l'état du scan
-scanning = False
+class GUIApp:
+    """Classe responsable de l'interface utilisateur."""
 
-# Fonction pour scanner un port
-def scan_port(domainip: str, port: int) -> tuple:
-    try:
-        # Utiliser une connexion socket plus rapide
-        s = socket.create_connection((domainip, port), timeout=0.5)
-        return (port, "open")
-    except Exception:
-        return (port, "closed")
+    def __init__(self):
+        self.scanner = PortScanner.PortScanner()
+        self.results = ""  # Stocke les résultats pour l'exportation
 
-# Fonction pour scanner les ports
-def scan_ports(ip, start_port, end_port):
-    open_ports = {}
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(scan_port, ip, port): port for port in range(start_port, end_port + 1)}
-        for future in concurrent.futures.as_completed(futures):
-            if not scanning:  # Vérifier si le scan doit être arrêté
-                break
-            port, status = future.result()
-            if status == "open":
-                open_ports[port] = status
-    return open_ports
+        # Configuration de l'application principale
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+        self.app = ctk.CTk()
+        self.app.title("Scanner de Ports")
+        self.app.geometry("500x500")
 
-# Fonction pour scanner les services sur les ports ouverts
-def scan_services(ip, open_ports):
-    nm = nmap.PortScanner()
-    services = {}
-    for port in open_ports:
-        nm.scan(ip, str(port))
-        if nm[ip].all_state() == 'up':
-            service_info = nm[ip]['tcp'][port]
-            services[port] = {
-                'name': service_info['name'],
-                'state': service_info['state'],
-                'version': service_info.get('version', 'N/A')
-            }
-    return services
+        # Menu déroulant pour changer de fenêtre
+        self.menu = ctk.CTkOptionMenu(self.app, values=["Scan", "Exploit"], command=self.switch_tab)
+        self.menu.pack(pady=10)
 
-# Fonction pour lancer le scan dans un thread
-def start_scan():
-    global scanning
-    scanning = True
-    ip = ip_entry.get()
-    start_port = 1  # Port de début fixe
-    try:
-        end_port = int(end_port_entry.get())
-    except ValueError:
-        result_text.insert(ctk.END, "Veuillez entrer un numéro de port valide.\n")
-        return
+        # Conteneur principal pour les widgets
+        self.main_frame = ctk.CTkFrame(self.app)
+        self.main_frame.pack(fill="both", expand=True)
 
-    if end_port < start_port or end_port > 65535:
-        result_text.insert(ctk.END, "Veuillez entrer une plage de ports valide (1-65535).\n")
-        return
+        # État de l'onglet actif
+        self.current_tab = None
 
-    result_text.delete(1.0, ctk.END)  # Effacer le texte précédent
-    result_text.insert(ctk.END, f"Scanning {ip} from port {start_port} to {end_port}...\n")
-    
-    # Lancer le scan dans un thread
-    threading.Thread(target=run_scan, args=(ip, start_port, end_port)).start()
+        # Initialisation de l'onglet Scan par défaut
+        self.show_scan_tab()
 
-# Fonction pour exécuter le scan et afficher les résultats
-def run_scan(ip, start_port, end_port):
-    open_ports = scan_ports(ip, start_port, end_port)
-    if open_ports:
-        result_text.insert(ctk.END, f"Ports ouverts: {', '.join(map(str, open_ports.keys()))}\n")
-        # Scanner les services sur les ports ouverts
-        services = scan_services(ip, open_ports)
-        for port, info in services.items():
-            result_text.insert(ctk.END, f"Port {port}: {info['name']} (Version: {info['version']})\n")
-    else:
-        result_text.insert(ctk.END, "Aucun port ouvert trouvé.\n")
-    global scanning
-    scanning = False  # Réinitialiser l'état du scan
+    def show_scan_tab(self):
+        """Affiche l'onglet Scan."""
+        self.clear_screen()
+        self.current_tab = "Scan"
 
-# Fonction pour arrêter le scan
-def stop_scan():
-    global scanning
-    scanning = False
-    result_text.insert(ctk.END, "Scan arrêté.\n")
+        # Widgets de l'onglet "Scan"
+        self.ip_label = ctk.CTkLabel(self.main_frame, text="Entrez l'adresse IP :")
+        self.ip_label.pack(pady=10)
 
-# Création de l'interface graphique
-ctk.set_appearance_mode("dark")  # Mode sombre
-ctk.set_default_color_theme("blue")  # Thème bleu
+        self.ip_entry = ctk.CTkEntry(self.main_frame)
+        self.ip_entry.pack(pady=10)
 
-app = ctk.CTk()
-app.title("Scanner de Ports")
-app.geometry("400x400")
+        self.end_port_label = ctk.CTkLabel(self.main_frame, text="Port de fin (par défaut 1024) :")
+        self.end_port_label.pack(pady=10)
 
-# Champ pour entrer l'IP
-ip_label = ctk.CTkLabel(app, text="Entrez l'adresse IP:")
-ip_label.pack(pady=10)
+        self.end_port_entry = ctk.CTkEntry(self.main_frame)
+        self.end_port_entry.insert(0, "1024")  # Valeur par défaut
+        self.end_port_entry.pack(pady=10)
 
-ip_entry = ctk.CTkEntry(app)
-ip_entry.pack(pady=10)
+        self.scan_button = ctk.CTkButton(self.main_frame, text="Lancer le scan", command=self.start_scan)
+        self.scan_button.pack(pady=10)
 
-# Champ pour entrer le port de fin avec valeur par défaut 1024
-end_port_label = ctk.CTkLabel(app, text="Port de fin (par défaut 1024):")
-end_port_label.pack(pady=10)
+        self.stop_button = ctk.CTkButton(self.main_frame, text="Arrêter le scan", command=self.stop_scan)
+        self.stop_button.pack(pady=10)
 
-end_port_entry = ctk.CTkEntry(app)
-end_port_entry.insert(0, "1024")  # Valeur par défaut
-end_port_entry.pack(pady=10)
+        self.export_button = ctk.CTkButton(self.main_frame, text="Exporter les résultats", command=self.export_results)
+        self.export_button.pack(pady=10)
 
-# Bouton pour lancer le scan
-scan_button = ctk.CTkButton(app, text="Lancer le scan", command=start_scan)
-scan_button.pack(pady=10)
+        self.result_text = ctk.CTkTextbox(self.main_frame, width=400, height=200)
+        self.result_text.pack(pady=10)
 
-# Bouton pour arrêter le scan
-stop_button = ctk.CTkButton(app, text="Arrêter le scan", command=stop_scan)
-stop_button.pack(pady=10)
+    def show_exploit_tab(self):
+        """Affiche l'onglet Exploit."""
+        self.clear_screen()
+        self.current_tab = "Exploit"
 
-# Zone de texte pour afficher les résultats
-result_text = ctk.CTkTextbox(app, width=300, height=150)
-result_text.pack(pady=10)
+        # Affichage de l'adresse IP locale
+        ip_address = self.get_local_ip()
+        self.exploit_label = ctk.CTkLabel(self.main_frame, text=f"Votre adresse IP locale : {ip_address}")
+        self.exploit_label.pack(pady=20)
 
-app.mainloop()
+    def clear_screen(self):
+        """Efface tous les widgets de l'onglet actuel."""
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
+
+    def switch_tab(self, selected_tab):
+        """Change d'onglet en fonction de la sélection du menu déroulant."""
+        if selected_tab == "Scan":
+            self.show_scan_tab()
+        elif selected_tab == "Exploit":
+            self.show_exploit_tab()
+
+    def get_local_ip(self):
+        """Retourne l'adresse IP locale de l'utilisateur."""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip_address = s.getsockname()[0]
+            s.close()
+            return ip_address
+        except Exception:
+            return "Impossible de déterminer l'adresse IP."
+
+    def start_scan(self):
+        """Démarre un scan dans un thread séparé."""
+        self.scanner.scanning = True
+        ip = self.ip_entry.get()
+        start_port = 1  # Port de début fixe
+        try:
+            end_port = int(self.end_port_entry.get())
+        except ValueError:
+            self.result_text.insert(ctk.END, "Veuillez entrer un numéro de port valide.\n")
+            return
+
+        if end_port < start_port or end_port > 65535:
+            self.result_text.insert(ctk.END, "Veuillez entrer une plage de ports valide (1-65535).\n")
+            return
+
+        self.result_text.delete(1.0, ctk.END)
+        self.result_text.insert(ctk.END, f"Scanning {ip} from port {start_port} to {end_port}...\n")
+
+        threading.Thread(target=self.run_scan, args=(ip, start_port, end_port)).start()
+
+    def run_scan(self, ip, start_port, end_port):
+        """Effectue le scan et affiche les résultats."""
+        open_ports = self.scanner.scan_ports(ip, start_port, end_port)
+        if open_ports:
+            self.results = f"Ports ouverts pour {ip} : {', '.join(map(str, open_ports.keys()))}\n"
+            self.result_text.insert(ctk.END, self.results)
+        else:
+            self.results = "Aucun port ouvert trouvé.\n"
+            self.result_text.insert(ctk.END, self.results)
+        self.scanner.scanning = False
+
+    def stop_scan(self):
+        """Arrête le scan en cours."""
+        self.scanner.scanning = False
+        self.result_text.insert(ctk.END, "Scan arrêté.\n")
+
+    def export_results(self):
+        """Exporte les résultats dans un fichier texte."""
+        if self.results:
+            with open("scan_results.txt", "w") as file:
+                file.write(self.results)
+            self.result_text.insert(ctk.END, "Résultats exportés dans scan_results.txt\n")
+        else:
+            self.result_text.insert(ctk.END, "Aucun résultat à exporter.\n")
+
+    def run(self):
+        """Lance l'application GUI."""
+        self.app.mainloop()
+
+
+if __name__ == "__main__":
+    app = GUIApp()
+    app.run()
