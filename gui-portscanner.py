@@ -1,8 +1,8 @@
 import socket
 import threading
 import customtkinter as ctk
-import PortScanner
-from HashIdentifier import identify_hash
+import module.PortScanner
+from module.HashIdentifier import identify_hash
 
 
 
