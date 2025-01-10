@@ -15,9 +15,9 @@ class GUIApp:
 
         # Configuration de l'application principale
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("green")
         self.app = ctk.CTk()
-        self.app.title("Scanner de Ports")
+        self.app.title("PentesterTool by Victor")
         self.app.geometry("600x500")
 
         # Menu déroulant pour changer de fenêtre
